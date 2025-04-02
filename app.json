@@ -24,7 +24,8 @@
       }
     },
     "plugins": [
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "expo-router"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

@@ -6,19 +6,21 @@ export const registerUser = async (email, password, userData) => {
   try {
     const { user } = await createUserWithEmailAndPassword(auth, email, password);
     
-    await setDoc(doc(db, 'users', user.uid), {
-      ...userData,
+    // Set default churchBranch if not provided
+    const userProfile = {
+      name: userData.name,
       email: user.email,
-      createdAt: new Date(),
-    });
-    
+      role: userData.role || 'member',
+      churchBranch: userData.churchBranch || 'default_branch', // Add default
+      createdAt: new Date()
+    };
+
+    await setDoc(doc(db, 'users', user.uid), userProfile);
     return user;
   } catch (error) {
-    console.error("Registration error:", error);
     throw error;
   }
 };
-
 export const loginUser = async (email, password) => {
   try {
     const { user } = await signInWithEmailAndPassword(auth, email, password);

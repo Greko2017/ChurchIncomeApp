@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { auth } from '../config/firebase';
+import { auth, signOut, onAuthStateChanged, signInWithEmailAndPassword } from '../config/firebase';
 
 // Create the context
 const AuthContext = createContext({
@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => { //Pass auth instance
       setUser(user);
       setLoading(false);
     });
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      await auth.signInWithEmailAndPassword(email, password);
+      await signInWithEmailAndPassword(auth, email, password); //Pass auth instance
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await auth.signOut();
+      await signOut(auth); //Pass auth instance
     } catch (error) {
       console.error('Logout error:', error);
     }

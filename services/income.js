@@ -1,8 +1,17 @@
-import {db} from '../config/firebase'
-import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  updateDoc, 
+  doc,
+  getDoc  // Added missing import
+} from 'firebase/firestore';
 
 // Create new income record
-export const createIncomeRecord = async (recordData, userId) => {
+export const addIncomeRecord = async (recordData, userId) => {
   try {
     // Calculate totals
     const totalOffering = recordData.denominations.reduce(
@@ -50,7 +59,6 @@ export const approveRecord = async (recordId, role, userId) => {
       }
     };
 
-    // Check if all approvals are done
     const recordRef = doc(db, 'incomeRecords', recordId);
     await updateDoc(recordRef, updateData);
 
@@ -91,4 +99,11 @@ export const getIncomeRecords = async (branchId, startDate, endDate) => {
     console.error("Error fetching income records:", error);
     throw error;
   }
+};
+
+// Export all functions
+export default {
+  addIncomeRecord,
+  approveRecord,
+  getIncomeRecords
 };

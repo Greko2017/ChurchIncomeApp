@@ -1,80 +1,77 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, Button } from 'react-native';
-import { db } from '../../config/firebase';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { db } from '../config/firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import BranchAssignmentModal from './BranchAssignmentModal'; // We'll create this next
 
 export default function BranchManagement() {
-  const [branches, setBranches] = useState([]);
-  const [newBranch, setNewBranch] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [branches, setBranches] = useState([
+    'main_branch',
+    'akwa_north',
+    'bonewonda'
+  ]);
 
   useEffect(() => {
-    fetchBranches();
+    const fetchUsers = async () => {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const usersList = [];
+      querySnapshot.forEach((doc) => {
+        usersList.push({ id: doc.id, ...doc.data() });
+      });
+      setUsers(usersList);
+    };
+    fetchUsers();
   }, []);
 
-  const fetchBranches = async () => {
+  const handleAssignBranch = async (userId, branch) => {
     try {
-      setLoading(true);
-      const querySnapshot = await getDocs(collection(db, 'branches'));
-      const branchesList = [];
-      querySnapshot.forEach((doc) => {
-        branchesList.push({ id: doc.id, ...doc.data() });
+      await updateDoc(doc(db, 'users', userId), {
+        churchBranch: branch
       });
-      setBranches(branchesList);
+      // Update local state
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, churchBranch: branch } : user
+      ));
+      setSelectedUser(null);
+      alert('Branch assigned successfully!');
     } catch (error) {
-      console.error("Error fetching branches:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addBranch = async () => {
-    if (!newBranch.trim()) return;
-    
-    try {
-      setLoading(true);
-      await addDoc(collection(db, 'branches'), {
-        name: newBranch.trim(),
-        createdAt: new Date(),
-      });
-      setNewBranch('');
-      fetchBranches();
-    } catch (error) {
-      console.error("Error adding branch:", error);
-    } finally {
-      setLoading(false);
+      alert('Error: ' + error.message);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Church Branches</Text>
+      <Text style={styles.title}>User Branch Assignment</Text>
       
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter branch name"
-          value={newBranch}
-          onChangeText={setNewBranch}
-        />
-        <Button 
-          title="Add" 
-          onPress={addBranch} 
-          disabled={loading || !newBranch.trim()}
-        />
-      </View>
+      <FlatList
+        data={users}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.userCard}
+            onPress={() => setSelectedUser(item)}
+          >
+            <Text style={styles.userName}>{item.name}</Text>
+            <Text style={styles.userEmail}>{item.email}</Text>
+            <Text style={[
+              styles.branchText,
+              !item.churchBranch && styles.missingBranch
+            ]}>
+              {item.churchBranch || 'No branch assigned'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
 
-      {loading && branches.length === 0 ? (
-        <Text>Loading branches...</Text>
-      ) : (
-        <FlatList
-          data={branches}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.branchItem}>
-              <Text>{item.name}</Text>
-            </View>
-          )}
+      {selectedUser && (
+        <BranchAssignmentModal
+          visible={!!selectedUser}
+          user={selectedUser}
+          branches={branches}
+          onAssign={handleAssignBranch}
+          onClose={() => setSelectedUser(null)}
         />
       )}
     </View>
@@ -85,26 +82,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: '#f5f5f5'
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 20,
+    textAlign: 'center'
   },
-  inputContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 8,
-    marginRight: 8,
-  },
-  branchItem: {
+  userCard: {
+    backgroundColor: 'white',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginBottom: 10,
+    borderRadius: 8,
+    elevation: 2
   },
+  userName: {
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginVertical: 4
+  },
+  branchText: {
+    fontSize: 14,
+    color: 'green'
+  },
+  missingBranch: {
+    color: 'red'
+  }
 });
