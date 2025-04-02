@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "261966109326",
+    "project_id": "church-income-management",
+    "storage_bucket": "church-income-management.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:261966109326:android:523ea6dfbb1055d53547df",
+        "android_client_info": {
+          "package_name": "com.winnerchapeldeido.churchincomemanagment"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3oLQI6_kNQUkQs_VcGOwp1AMOQigvdWU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

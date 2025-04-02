@@ -1,0 +1,8 @@
+{
+    "build": {
+      "android": {
+        "buildType": "apk",
+        "googleServicesFile": "./google-services.json"
+      }
+    }
+  }

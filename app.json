@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ChurchIncomeApp",
-    "slug": "ChurchIncomeApp",
+    "name": "Church Income Management",
+    "slug": "church-income-management",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,11 +16,16 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.winnerchapeldeido.churchincomemanagment",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
+    "plugins": [
+      "@react-native-firebase/app"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
