@@ -1,79 +1,365 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { db } from '../config/firebase';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import BranchAssignmentModal from './BranchAssignmentModal'; // We'll create this next
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { Button, TextInput, Portal, Dialog, IconButton, Searchbar } from 'react-native-paper';
+import { getAllBranches, createBranch, updateBranch, deleteBranch, searchBranches } from '../../services/branches';
+import { getAllUsers, searchUsers, updateUser } from '../../services/users';
+import UserRoleBadge from '../../components/UserRoleBadge';
 
 export default function BranchManagement() {
+  const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [branches, setBranches] = useState([
-    'main_branch',
-    'akwa_north',
-    'bonewonda'
-  ]);
+  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [editDialogVisible, setEditDialogVisible] = useState(false);
+  const [createDialogVisible, setCreateDialogVisible] = useState(false);
+  const [assignDialogVisible, setAssignDialogVisible] = useState(false);
+  const [branchSelectionVisible, setBranchSelectionVisible] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    address: '',
+    phone: '',
+    status: 'active'
+  });
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      const querySnapshot = await getDocs(collection(db, 'users'));
-      const usersList = [];
-      querySnapshot.forEach((doc) => {
-        usersList.push({ id: doc.id, ...doc.data() });
-      });
-      setUsers(usersList);
-    };
-    fetchUsers();
+    loadBranches();
+    loadUsers();
   }, []);
 
-  const handleAssignBranch = async (userId, branch) => {
+  const loadBranches = async () => {
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        churchBranch: branch
-      });
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, churchBranch: branch } : user
-      ));
-      setSelectedUser(null);
-      alert('Branch assigned successfully!');
+      setLoading(true);
+      const fetchedBranches = await getAllBranches();
+      setBranches(fetchedBranches);
     } catch (error) {
-      alert('Error: ' + error.message);
+      console.error("Error loading branches:", error);
+      alert("Failed to load branches");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const fetchedUsers = await getAllUsers();
+      setUsers(fetchedUsers);
+    } catch (error) {
+      console.error("Error loading users:", error);
+    }
+  };
+
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    try {
+      if (query.trim()) {
+        const results = await searchBranches(query);
+        setBranches(results);
+      } else {
+        loadBranches();
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+    }
+  };
+
+  const handleUserSearch = async (query) => {
+    setUserSearchQuery(query);
+    try {
+      if (query.trim()) {
+        const results = await searchUsers(query);
+        setUsers(results);
+      } else {
+        loadUsers();
+      }
+    } catch (error) {
+      console.error("User search error:", error);
+    }
+  };
+
+  const handleAssignBranch = async (branchId) => {
+    try {
+      setLoading(true);
+      await updateUser(selectedUser.id, {
+        ...selectedUser,
+        churchBranch: branchId
+      });
+      setBranchSelectionVisible(false);
+      setAssignDialogVisible(false);
+      setSelectedUser(null);
+      await loadUsers();
+      Alert.alert("Success", "Branch assigned successfully!");
+    } catch (error) {
+      console.error("Error assigning branch:", error);
+      Alert.alert("Error", "Failed to assign branch");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateBranch = () => {
+    setEditForm({
+      name: '',
+      address: '',
+      phone: '',
+      status: 'active'
+    });
+    setCreateDialogVisible(true);
+  };
+
+  const handleEdit = (branch) => {
+    setSelectedBranch(branch);
+    setEditForm({
+      name: branch.name,
+      address: branch.address || '',
+      phone: branch.phone || '',
+      status: branch.status || 'active'
+    });
+    setEditDialogVisible(true);
+  };
+
+  const handleUpdate = async () => {
+    try {
+      setLoading(true);
+      await updateBranch(selectedBranch.id, editForm);
+      setEditDialogVisible(false);
+      loadBranches();
+      alert("Branch updated successfully");
+    } catch (error) {
+      console.error("Update error:", error);
+      alert("Failed to update branch");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    try {
+      setLoading(true);
+      await createBranch(editForm);
+      setCreateDialogVisible(false);
+      loadBranches();
+      alert("Branch created successfully");
+    } catch (error) {
+      console.error("Create error:", error);
+      alert("Failed to create branch");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (branchId) => {
+    try {
+      if (confirm("Are you sure you want to delete this branch?")) {
+        setLoading(true);
+        await deleteBranch(branchId);
+        loadBranches();
+        alert("Branch deleted successfully");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete branch");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>User Branch Assignment</Text>
-      
-      <FlatList
-        data={users}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.userCard}
-            onPress={() => setSelectedUser(item)}
-          >
-            <Text style={styles.userName}>{item.name}</Text>
-            <Text style={styles.userEmail}>{item.email}</Text>
-            <Text style={[
-              styles.branchText,
-              !item.churchBranch && styles.missingBranch
-            ]}>
-              {item.churchBranch || 'No branch assigned'}
-            </Text>
-          </TouchableOpacity>
-        )}
+      <Searchbar
+        placeholder="Search branches..."
+        onChangeText={handleSearch}
+        value={searchQuery}
+        style={styles.searchBar}
       />
 
-      {selectedUser && (
-        <BranchAssignmentModal
-          visible={!!selectedUser}
-          user={selectedUser}
-          branches={branches}
-          onAssign={handleAssignBranch}
-          onClose={() => setSelectedUser(null)}
+      <View style={styles.buttonContainer}>
+        <Button 
+          mode="contained" 
+          onPress={() => setAssignDialogVisible(true)}
+          style={[styles.button, styles.assignButton]}
+          icon="account-arrow-right"
+        >
+          Assign Branch
+        </Button>
+
+        <Button 
+          mode="contained" 
+          onPress={handleCreateBranch}
+          style={[styles.button, styles.createButton]}
+          icon="plus"
+        >
+          Create Branch
+        </Button>
+      </View>
+
+      {loading ? (
+        <ActivityIndicator size="large" style={styles.loader} />
+      ) : (
+        <FlatList
+          data={branches}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.branchCard}>
+              <View style={styles.branchInfo}>
+                <Text style={styles.branchName}>{item.name}</Text>
+                {item.address && <Text style={styles.branchDetail}>Address: {item.address}</Text>}
+                {item.phone && <Text style={styles.branchDetail}>Phone: {item.phone}</Text>}
+                <Text style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
+                  {item.status}
+                </Text>
+              </View>
+              <View style={styles.actions}>
+                <IconButton
+                  icon="pencil"
+                  onPress={() => handleEdit(item)}
+                />
+                <IconButton
+                  icon="delete"
+                  onPress={() => handleDelete(item.id)}
+                />
+              </View>
+            </View>
+          )}
         />
       )}
+
+      <Portal>
+        <Dialog visible={editDialogVisible} onDismiss={() => setEditDialogVisible(false)}>
+          <Dialog.Title>Edit Branch</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Branch Name"
+              value={editForm.name}
+              onChangeText={(text) => setEditForm(prev => ({ ...prev, name: text }))}
+              style={styles.dialogInput}
+            />
+            <TextInput
+              label="Address"
+              value={editForm.address}
+              onChangeText={(text) => setEditForm(prev => ({ ...prev, address: text }))}
+              style={styles.dialogInput}
+            />
+            <TextInput
+              label="Phone"
+              value={editForm.phone}
+              onChangeText={(text) => setEditForm(prev => ({ ...prev, phone: text }))}
+              style={styles.dialogInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setEditDialogVisible(false)}>Cancel</Button>
+            <Button onPress={handleUpdate} loading={loading}>Save</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={createDialogVisible} onDismiss={() => setCreateDialogVisible(false)}>
+          <Dialog.Title>Create New Branch</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Branch Name"
+              value={editForm.name}
+              onChangeText={(text) => setEditForm(prev => ({ ...prev, name: text }))}
+              style={styles.dialogInput}
+            />
+            <TextInput
+              label="Address"
+              value={editForm.address}
+              onChangeText={(text) => setEditForm(prev => ({ ...prev, address: text }))}
+              style={styles.dialogInput}
+            />
+            <TextInput
+              label="Phone"
+              value={editForm.phone}
+              onChangeText={(text) => setEditForm(prev => ({ ...prev, phone: text }))}
+              style={styles.dialogInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setCreateDialogVisible(false)}>Cancel</Button>
+            <Button onPress={handleCreate} loading={loading}>Create</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={assignDialogVisible} onDismiss={() => setAssignDialogVisible(false)}>
+          <Dialog.Title>Select User</Dialog.Title>
+          <Dialog.Content>
+            <Searchbar
+              placeholder="Search users..."
+              onChangeText={handleUserSearch}
+              value={userSearchQuery}
+              style={styles.dialogSearchBar}
+            />
+            <FlatList
+              data={users}
+              keyExtractor={(item) => item.id}
+              style={styles.dialogList}
+              renderItem={({ item }) => {
+                const userBranch = branches.find(b => b.id === item.churchBranch);
+                return (
+                  <View style={styles.userListItem}>
+                    <View style={styles.userListInfo}>
+                      <Text style={styles.userName}>{item.name}</Text>
+                      <Text style={styles.userEmail}>{item.email}</Text>
+                      <UserRoleBadge role={item.role} />
+                      <Text style={styles.branchText}>
+                        Current Branch: {userBranch ? userBranch.name : 'None'}
+                      </Text>
+                    </View>
+                    <Button
+                      mode="contained"
+                      onPress={() => {
+                        setSelectedUser(item);
+                        setBranchSelectionVisible(true);
+                      }}
+                    >
+                      Select
+                    </Button>
+                  </View>
+                );
+              }}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setAssignDialogVisible(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={branchSelectionVisible} onDismiss={() => setBranchSelectionVisible(false)}>
+          <Dialog.Title>Select Branch for {selectedUser?.name}</Dialog.Title>
+          <Dialog.Content>
+            <FlatList
+              data={branches}
+              keyExtractor={(item) => item.id}
+              style={styles.dialogList}
+              renderItem={({ item }) => (
+                <View style={styles.branchListItem}>
+                  <View style={styles.branchListInfo}>
+                    <Text style={styles.branchName}>{item.name}</Text>
+                    {item.address && <Text style={styles.branchDetail}>Address: {item.address}</Text>}
+                    {item.phone && <Text style={styles.branchDetail}>Phone: {item.phone}</Text>}
+                    <Text style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
+                      {item.status}
+                    </Text>
+                  </View>
+                  <Button
+                    mode="contained"
+                    onPress={() => handleAssignBranch(item.id)}
+                    loading={loading && selectedUser?.id === item.id}
+                  >
+                    Assign
+                  </Button>
+                </View>
+              )}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setBranchSelectionVisible(false)}>Cancel</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
@@ -84,33 +370,103 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f5f5f5'
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center'
+  searchBar: {
+    marginBottom: 16,
+    elevation: 2,
   },
-  userCard: {
-    backgroundColor: 'white',
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 16,
+  },
+  createButton: {
+    backgroundColor: '#2ecc71',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  branchCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 8,
+    backgroundColor: '#fff',
     borderRadius: 8,
-    elevation: 2
+    elevation: 2,
   },
-  userName: {
+  branchInfo: {
+    flex: 1,
+  },
+  branchName: {
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  branchDetail: {
+    color: '#666',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+    fontSize: 12,
+    textTransform: 'capitalize',
+  },
+  actions: {
+    flexDirection: 'row',
+  },
+  dialogInput: {
+    marginBottom: 12,
+  },
+  assignButton: {
+    marginRight: 8,
+    backgroundColor: '#3498db',
+  },
+  dialogSearchBar: {
+    marginBottom: 16,
+  },
+  dialogList: {
+    maxHeight: 400,
+  },
+  userListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  userListInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  branchListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   userEmail: {
-    fontSize: 14,
     color: '#666',
-    marginVertical: 4
+    fontSize: 14,
+    marginBottom: 4,
   },
   branchText: {
+    color: '#666',
     fontSize: 14,
-    color: 'green'
+    marginBottom: 4,
   },
-  missingBranch: {
-    color: 'red'
-  }
+  branchListInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
 });

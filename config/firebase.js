@@ -13,7 +13,7 @@ const firebaseConfig = {
   projectId: "church-income-management",
   storageBucket: "church-income-management.appspot.com",
   messagingSenderId: "261966109326",
-  appId: "1:261966109326:web:523ea6dfbb1055d53547df"
+  appId: "1:261966109326:web:523ea6dfbb1055d53547df",
 };
 
 // Initialize Firebase

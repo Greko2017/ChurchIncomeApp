@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Picker, Button } from 'react-native';
-import { db } from '../config/firebase';
+import { db } from '../../config/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 export default function BranchAssignment({ userId, currentBranch }) {

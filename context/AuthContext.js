@@ -1,6 +1,9 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, signOut, onAuthStateChanged, signInWithEmailAndPassword } from '../config/firebase';
 
+// import auth from '@react-native-firebase/auth';
+// import firestore from '@react-native-firebase/firestore';
+
 // Create the context
 const AuthContext = createContext({
   user: null,
@@ -23,6 +26,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    
+    console.log(email, password)
+
     try {
       await signInWithEmailAndPassword(auth, email, password); //Pass auth instance
     } catch (error) {

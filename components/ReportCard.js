@@ -8,7 +8,7 @@ export default function ReportCard({ record }) {
   );
   const totalAttendance = record.attendance.male + record.attendance.female + 
     record.attendance.teenager + record.attendance.children;
-
+  
   return (
     <View>
       <Text style={styles.date}>
