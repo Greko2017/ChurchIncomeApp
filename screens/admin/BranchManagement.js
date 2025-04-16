@@ -4,6 +4,7 @@ import { Button, TextInput, Portal, Dialog, IconButton, Searchbar } from 'react-
 import { getAllBranches, createBranch, updateBranch, deleteBranch, searchBranches } from '../../services/branches';
 import { getAllUsers, searchUsers, updateUser } from '../../services/users';
 import UserRoleBadge from '../../components/UserRoleBadge';
+import { getServicesByBranch } from '../../services/services';
 
 export default function BranchManagement() {
   const [branches, setBranches] = useState([]);
@@ -166,6 +167,87 @@ export default function BranchManagement() {
     }
   };
 
+  const BranchCard = ({ branch, onEdit, onDelete }) => {
+    const [services, setServices] = useState([]);
+    const [loadingServices, setLoadingServices] = useState(false);
+    const [showServices, setShowServices] = useState(false);
+
+    const loadServices = async () => {
+      try {
+        setLoadingServices(true);
+        const branchServices = await getServicesByBranch(branch.id);
+        setServices(branchServices);
+      } catch (error) {
+        console.error("Error loading services:", error);
+        Alert.alert("Error", "Failed to load services for this branch");
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    useEffect(() => {
+      if (showServices) {
+        loadServices();
+      }
+    }, [showServices]);
+
+    return (
+      <View style={styles.branchCard}>
+        <View style={styles.branchInfo}>
+          <Text style={styles.branchName}>{branch.name}</Text>
+          <Text style={styles.branchDetail}>Address: {branch.address}</Text>
+          <Text style={styles.branchDetail}>Phone: {branch.phone}</Text>
+          <Text style={[styles.statusBadge, { backgroundColor: branch.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
+            {branch.status}
+          </Text>
+          
+          <Button
+            mode="text"
+            onPress={() => setShowServices(!showServices)}
+            icon={showServices ? "chevron-up" : "chevron-down"}
+            style={styles.servicesButton}
+          >
+            {showServices ? "Hide Services" : "Show Services"}
+          </Button>
+
+          {showServices && (
+            <View style={styles.servicesContainer}>
+              {loadingServices ? (
+                <ActivityIndicator size="small" style={styles.loader} />
+              ) : services.length > 0 ? (
+                services.map(service => (
+                  <View key={service.id} style={styles.serviceItem}>
+                    <Text style={styles.serviceTitle}>{service.title}</Text>
+                    <Text style={styles.serviceDetail}>Day: {service.day}</Text>
+                    <Text style={styles.serviceDetail}>Time: {service.time}</Text>
+                    {service.description && (
+                      <Text style={styles.serviceDescription}>{service.description}</Text>
+                    )}
+                    <Text style={[styles.serviceStatus, { backgroundColor: service.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
+                      {service.status}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noServicesText}>No services found for this branch</Text>
+              )}
+            </View>
+          )}
+        </View>
+        <View style={styles.actions}>
+          <IconButton
+            icon="pencil"
+            onPress={() => onEdit(branch)}
+          />
+          <IconButton
+            icon="delete"
+            onPress={() => onDelete(branch.id)}
+          />
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Searchbar
@@ -202,26 +284,7 @@ export default function BranchManagement() {
           data={branches}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.branchCard}>
-              <View style={styles.branchInfo}>
-                <Text style={styles.branchName}>{item.name}</Text>
-                {item.address && <Text style={styles.branchDetail}>Address: {item.address}</Text>}
-                {item.phone && <Text style={styles.branchDetail}>Phone: {item.phone}</Text>}
-                <Text style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
-                  {item.status}
-                </Text>
-              </View>
-              <View style={styles.actions}>
-                <IconButton
-                  icon="pencil"
-                  onPress={() => handleEdit(item)}
-                />
-                <IconButton
-                  icon="delete"
-                  onPress={() => handleDelete(item.id)}
-                />
-              </View>
-            </View>
+            <BranchCard branch={item} onEdit={handleEdit} onDelete={handleDelete} />
           )}
         />
       )}
@@ -376,7 +439,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   createButton: {
@@ -468,5 +531,50 @@ const styles = StyleSheet.create({
   branchListInfo: {
     flex: 1,
     marginRight: 16,
+  },
+  servicesButton: {
+    marginTop: 8,
+  },
+  servicesContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+  },
+  serviceItem: {
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  serviceTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  serviceDetail: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  serviceDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  serviceStatus: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+    fontSize: 12,
+    textTransform: 'capitalize',
+  },
+  noServicesText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    padding: 8,
   },
 });

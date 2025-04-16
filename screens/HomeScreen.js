@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import IncomeForm from '../../components/DynamicDenominationForm';
-import useAuth from '../../hooks/useAuth';
-import { addIncomeRecord } from '../../services/income';
+import IncomeForm from '../components/DynamicDenominationForm.js';
+import useAuth from '../hooks/useAuth';
+import { addIncomeRecord } from '../services/income';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db } from '../config/firebase';
 import { getAuth } from 'firebase/auth'; // Import getAuth if not already imported
 
 
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    marginTop: '10%',
+    marginTop: '2%',
   },
   loadingContainer: {
     flex: 1,

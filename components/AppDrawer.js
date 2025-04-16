@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Drawer, Text } from 'react-native-paper';
+import { View, StyleSheet, Platform } from 'react-native';
+import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
+import { Text } from 'react-native-paper';
 import { auth } from '../config/firebase';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function AppDrawer() {
+export default function AppDrawer(props) {
   const navigation = useNavigation();
 
   const handleLogout = async () => {
@@ -20,43 +22,31 @@ export default function AppDrawer() {
   };
 
   return (
-    <View style={styles.container}>
+    <DrawerContentScrollView 
+      {...props} 
+      style={[
+        styles.container,
+        Platform.OS === 'web' && styles.webContainer
+      ]}
+      contentContainerStyle={styles.contentContainer}
+    >
       <View style={styles.header}>
-        <Text style={styles.headerText}>Church Income App</Text>
+        <Text style={styles.headerText}>CIMS</Text>
         {auth.currentUser && (
           <Text style={styles.userEmail}>{auth.currentUser.email}</Text>
         )}
       </View>
-      <Drawer.Section>
-        <Drawer.Item
-          icon="home"
-          label="Home"
-          onPress={() => navigation.navigate('Home')}
-        />
-        <Drawer.Item
-          icon="account-multiple"
-          label="User Management"
-          onPress={() => navigation.navigate('UserManagement')}
-        />
-        <Drawer.Item
-          icon="office-building"
-          label="Branch Management"
-          onPress={() => navigation.navigate('BranchManagement')}
-        />
-        <Drawer.Item
-          icon="cash-multiple"
-          label="Income Records"
-          onPress={() => navigation.navigate('IncomeRecords')}
-        />
-      </Drawer.Section>
-      <Drawer.Section style={styles.bottomSection}>
-        <Drawer.Item
-          icon="logout"
+      <DrawerItemList {...props} />
+      <View style={styles.bottomSection}>
+        <DrawerItem
           label="Logout"
+          icon={({ color, size }) => (
+            <Ionicons name="log-out" size={size} color={color} />
+          )}
           onPress={handleLogout}
         />
-      </Drawer.Section>
-    </View>
+      </View>
+    </DrawerContentScrollView>
   );
 }
 
@@ -64,6 +54,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  contentContainer: {
+    flexGrow: 1,
+  },
+  webContainer: {
+    width: 240,
+    position: 'fixed',
+    height: '100%',
+    zIndex: 1,
   },
   header: {
     padding: 16,
@@ -78,6 +77,7 @@ const styles = StyleSheet.create({
   userEmail: {
     color: '#fff',
     marginTop: 4,
+    opacity: 0.8,
   },
   bottomSection: {
     marginTop: 'auto',

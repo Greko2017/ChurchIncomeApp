@@ -1,24 +1,53 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Button, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Button } from 'react-native-paper';
 import useAuth from '../../hooks/useAuth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false); // Add loading state
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
   const handleLogin = async () => {
-    setLoading(true); // Start loading
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    
     try {
-      setError('');
       await login(email, password);
-      // Login successful, handle navigation or other actions here
+      // Navigation will be handled by the auth state change
     } catch (err) {
-      setError('Invalid email or password');
+      let errorMessage = 'An error occurred during login';
+      
+      switch (err.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your connection';
+          break;
+        default:
+          console.error('Login error:', err);
+      }
+      
+      setError(errorMessage);
     } finally {
-      setLoading(false); // Stop loading regardless of success or failure
+      setLoading(false);
     }
   };
 
@@ -32,6 +61,8 @@ export default function LoginScreen() {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        keyboardType="email-address"
+        editable={!loading}
       />
       <TextInput
         style={styles.input}
@@ -39,12 +70,17 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        editable={!loading}
       />
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" /> // Show loading indicator
-      ) : (
-        <Button title="Login" onPress={handleLogin} />
-      )}
+      <Button
+        mode="contained"
+        onPress={handleLogin}
+        loading={loading}
+        disabled={loading}
+        style={styles.button}
+      >
+        Login
+      </Button>
     </View>
   );
 }
@@ -54,24 +90,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+    color: '#333',
   },
   input: {
-    height: 40,
-    borderColor: 'gray',
+    height: 50,
+    borderColor: '#ddd',
     borderWidth: 1,
     marginBottom: 12,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#fff',
   },
   error: {
-    color: 'red',
+    color: '#d32f2f',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  button: {
+    marginTop: 8,
+    paddingVertical: 8,
   },
 });

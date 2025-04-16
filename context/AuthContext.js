@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, signOut, onAuthStateChanged, signInWithEmailAndPassword } from '../config/firebase';
+import { loginUser, getCurrentUser } from '../services/auth';
 
 // import auth from '@react-native-firebase/auth';
 // import firestore from '@react-native-firebase/firestore';
@@ -18,30 +19,47 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => { //Pass auth instance
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+      if (authUser) {
+        try {
+          const userData = await getCurrentUser();
+          setUser(userData);
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
-    return unsubscribe; // Cleanup subscription
+    return unsubscribe;
   }, []);
 
   const login = async (email, password) => {
-    
-    console.log(email, password)
-
     try {
-      await signInWithEmailAndPassword(auth, email, password); //Pass auth instance
+      setLoading(true);
+      const userData = await loginUser(email, password);
+      setUser(userData);
+      return userData;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      await signOut(auth); //Pass auth instance
+      setLoading(true);
+      await signOut(auth);
+      setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
