@@ -1,6 +1,6 @@
 import { auth, db } from '../config/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, updateDoc ,getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const registerUser = async (email, password, userData) => {
   try {
@@ -26,7 +26,7 @@ export const loginUser = async (email, password) => {
   try {
     // First authenticate with Firebase Auth
     const { user } = await signInWithEmailAndPassword(auth, email, password);
-    console.log("user", user)
+    // console.log("user", user)
     // Then fetch user data from Firestore
     const usersCollection = collection(db, 'users');
     const q = query(usersCollection, where('email', '==', email));

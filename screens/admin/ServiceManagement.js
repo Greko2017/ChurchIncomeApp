@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
-import { Button, TextInput, Portal, Dialog, IconButton, Searchbar } from 'react-native-paper';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { Button, TextInput, Portal, Dialog, IconButton, Searchbar, Card, Title } from 'react-native-paper';
 import { getAllServices, createService, updateService, deleteService, searchServices, getServicesByBranch } from '../../services/services';
 import { getAllBranches } from '../../services/branches';
-import { auth, db } from '../../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth'; // Import getAuth if not already imported
+import { useNavigation } from '@react-navigation/native';
+
 
 export default function ServiceManagement() {
   const [services, setServices] = useState([]);
@@ -23,6 +26,7 @@ export default function ServiceManagement() {
     branchId: '',
     status: 'active'
   });
+  const navigation = useNavigation();
 
   useEffect(() => {
     fetchUserData();
@@ -35,6 +39,7 @@ export default function ServiceManagement() {
   }, [userBranch]);
 
   const fetchUserData = async () => {
+    const auth = getAuth();
     try {
       setLoading(true);
       const usersCollection = collection(db, 'users');
@@ -180,6 +185,90 @@ export default function ServiceManagement() {
     );
   };
 
+  const renderServiceCard = ({ item }) => {
+    const hasDetails = item.serviceDetails;
+    const isApproved = hasDetails && item.serviceDetails.status === 'approved';
+    const isPending = hasDetails && item.serviceDetails.status === 'pending';
+    
+    // Calculate totals if details exist
+    const incomeTotals = hasDetails ? {
+      offering: item.serviceDetails.denominations.reduce((sum, d) => sum + (d.offering * d.value), 0),
+      tithe: item.serviceDetails.denominations.reduce((sum, d) => sum + (d.tithe * d.value), 0),
+      project: item.serviceDetails.denominations.reduce((sum, d) => sum + (d.project * d.value), 0),
+      shiloh: item.serviceDetails.denominations.reduce((sum, d) => sum + (d.shiloh * d.value), 0),
+      thanksgiving: item.serviceDetails.denominations.reduce((sum, d) => sum + (d.thanksgiving * d.value), 0)
+    } : null;
+
+    const grandTotal = incomeTotals ? 
+      Object.values(incomeTotals).reduce((sum, val) => sum + val, 0) : 0;
+
+    const attendanceTotal = hasDetails ? 
+      item.serviceDetails.attendance.male + 
+      item.serviceDetails.attendance.female + 
+      item.serviceDetails.attendance.teenager + 
+      item.serviceDetails.attendance.children : 0;
+
+    return (
+      <TouchableOpacity 
+        style={styles.serviceCard}
+        onPress={() => navigation.navigate('ServiceDetails', { serviceId: item.id })}
+      >
+        <View style={styles.serviceInfo}>
+          <View style={styles.serviceHeader}>
+            <Text style={styles.serviceTitle}>{item.title}</Text>
+            <View style={styles.statusContainer}>
+              <Text style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
+                {item.status}
+              </Text>
+              {hasDetails && (
+                <Text style={[
+                  styles.statusBadge,
+                  { backgroundColor: isApproved ? '#e8f5e9' : isPending ? '#fff3e0' : '#ffebee' }
+                ]}>
+                  {isApproved ? 'Approved' : isPending ? 'Pending' : 'Rejected'}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.serviceDetails}>
+            <Text style={styles.serviceDetail}>Day: {item.day}</Text>
+            <Text style={styles.serviceDetail}>Time: {item.time}</Text>
+            {hasDetails && (
+              <View style={styles.totalsRow}>
+                <Text style={styles.serviceDetail}>Income: ₦{grandTotal.toLocaleString()}</Text>
+                <Text style={styles.serviceDetail}>Attendance: {attendanceTotal}</Text>
+              </View>
+            )}
+            {hasDetails && item.serviceDetails.counters && (
+              <Text style={styles.serviceDetail}>
+                Counters: {item.serviceDetails.counters.join(', ')}
+              </Text>
+            )}
+            {isApproved && (
+              <Text style={[styles.serviceDetail, styles.approvedBy]}>
+                Approved By: {item.serviceDetails.approvedBy}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <IconButton
+            icon="pencil"
+            size={20}
+            onPress={() => handleEdit(item)}
+          />
+          <IconButton
+            icon="delete"
+            size={20}
+            onPress={() => handleDelete(item.id)}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {userBranch && (
@@ -211,31 +300,7 @@ export default function ServiceManagement() {
         <FlatList
           data={services}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.serviceCard}>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceTitle}>{item.title}</Text>
-                <Text style={styles.serviceDetail}>Day: {item.day}</Text>
-                <Text style={styles.serviceDetail}>Time: {item.time}</Text>
-                {item.description && (
-                  <Text style={styles.serviceDescription}>{item.description}</Text>
-                )}
-                <Text style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? '#e8f5e9' : '#ffebee' }]}>
-                  {item.status}
-                </Text>
-              </View>
-              <View style={styles.actions}>
-                <IconButton
-                  icon="pencil"
-                  onPress={() => handleEdit(item)}
-                />
-                <IconButton
-                  icon="delete"
-                  onPress={() => handleDelete(item.id)}
-                />
-              </View>
-            </View>
-          )}
+          renderItem={renderServiceCard}
         />
       )}
 
@@ -346,7 +411,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     marginBottom: 8,
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -355,32 +420,47 @@ const styles = StyleSheet.create({
   serviceInfo: {
     flex: 1,
   },
-  serviceTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  serviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
+  },
+  serviceTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    fontSize: 10,
+    textTransform: 'capitalize',
+  },
+  serviceDetails: {
+    flex: 1,
   },
   serviceDetail: {
     color: '#666',
-    fontSize: 14,
+    fontSize: 12,
     marginBottom: 2,
   },
-  serviceDescription: {
-    color: '#666',
-    fontSize: 14,
-    marginTop: 4,
+  totalsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
   },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
-    fontSize: 12,
-    textTransform: 'capitalize',
+  approvedBy: {
+    fontStyle: 'italic',
   },
   actions: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   dialogInput: {
     marginBottom: 12,

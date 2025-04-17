@@ -82,11 +82,12 @@ export const deleteService = async (serviceId) => {
 };
 
 // Search services
-export const searchServices = async (searchTerm) => {
+export const searchServices = async (searchTerm, branchId) => {
   try {
     const servicesRef = collection(db, 'services');
     const q = query(
       servicesRef,
+      where('branchId', '==', branchId),
       orderBy('title'),
       where('title', '>=', searchTerm),
       where('title', '<=', searchTerm + '\uf8ff')

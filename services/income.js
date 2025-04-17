@@ -101,9 +101,45 @@ export const getIncomeRecords = async (branchId, startDate, endDate) => {
   }
 };
 
+// Get income record by service ID
+export const getIncomeRecordByServiceId = async (serviceId) => {
+  try {
+    const q = query(
+      collection(db, 'incomeRecords'),
+      where('serviceId', '==', serviceId)
+    );
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching income record:", error);
+    throw error;
+  }
+};
+
+// Update income record
+export const updateIncomeRecord = async (recordId, updateData) => {
+  try {
+    const recordRef = doc(db, 'incomeRecords', recordId);
+    await updateDoc(recordRef, {
+      ...updateData,
+      'meta.updatedAt': new Date().toISOString()
+    });
+    return true;
+  } catch (error) {
+    console.error("Error updating income record:", error);
+    throw error;
+  }
+};
+
 // Export all functions
 export default {
   addIncomeRecord,
   approveRecord,
-  getIncomeRecords
+  getIncomeRecords,
+  getIncomeRecordByServiceId,
+  updateIncomeRecord
 };

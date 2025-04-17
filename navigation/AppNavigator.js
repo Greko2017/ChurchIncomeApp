@@ -4,7 +4,7 @@ import { NavigationContainer, useNavigationContainerRef } from '@react-navigatio
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, setDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import useAuth from '../hooks/useAuth';
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -12,13 +12,16 @@ import HomeScreen from '../screens/HomeScreen';
 import BranchManagement from '../screens/admin/BranchManagement';
 import UserManagement from '../screens/admin/UserManagement';
 import ServiceManagement from '../screens/admin/ServiceManagement';
+import ServiceDetailsScreen from '../screens/admin/ServiceDetailsScreen';
 import AppDrawer from '../components/AppDrawer';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import InteractiveDashboard from '../screens/dashboard/InteractiveDashboard';
 
 // Create navigators
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+const ServiceStack = createStackNavigator();
 
 // Custom component to wrap tab screens and sync header title
 const TabScreen = ({ children, title, navigation }) => {
@@ -33,6 +36,27 @@ const TabScreen = ({ children, title, navigation }) => {
   return children;
 };
 
+// Service Stack Navigator
+function ServiceStackNavigator() {
+  return (
+    <ServiceStack.Navigator>
+      <ServiceStack.Screen 
+        name="ServiceList" 
+        component={ServiceManagement}
+        options={{ headerShown: false }}
+      />
+      <ServiceStack.Screen 
+        name="ServiceDetails" 
+        component={ServiceDetailsScreen}
+        options={{ 
+          headerTitle: 'Service Details',
+          headerShown: true 
+        }}
+      />
+    </ServiceStack.Navigator>
+  );
+}
+
 function AdminTabs() {
   // Use React state to track the current tab title
   const [currentTabTitle, setCurrentTabTitle] = useState('Dashboard');
@@ -43,9 +67,9 @@ function AdminTabs() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === 'AdminHome') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'ServiceStack') iconName = focused ? 'church' : 'church-outline';
           else if (route.name === 'BranchManagement') iconName = focused ? 'business' : 'business-outline';
           else if (route.name === 'UserManagement') iconName = focused ? 'people' : 'people-outline';
-          else if (route.name === 'ServiceManagement') iconName = focused ? 'church' : 'church-outline';
 
           if (iconName === 'church' || iconName === 'church-outline') return <MaterialCommunityIcons name={'church'} size={size} color={color} />
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -64,7 +88,7 @@ function AdminTabs() {
           let title = 'Dashboard';
           switch(activeRouteName) {
             case 'AdminHome': title = 'Dashboard'; break;
-            case 'ServiceManagement': title = 'Service'; break;
+            case 'ServiceStack': title = 'Service'; break;
             case 'BranchManagement': title = 'Branch'; break;
             case 'UserManagement': title = 'User'; break;
           }
@@ -87,24 +111,19 @@ function AdminTabs() {
       >
         {(props) => (
           <TabScreen {...props} title="Dashboard">
-            <HomeScreen {...props} />
+            <InteractiveDashboard {...props} />
           </TabScreen>
         )}
       </Tab.Screen>
       
       <Tab.Screen 
-        name="ServiceManagement" 
+        name="ServiceStack" 
+        component={ServiceStackNavigator}
         options={{ 
-          title: 'Service', 
-          headerShown: false 
+          title: 'Service',
+          headerShown: false
         }}
-      >
-        {(props) => (
-          <TabScreen {...props} title="Service">
-            <ServiceManagement {...props} />
-          </TabScreen>
-        )}
-      </Tab.Screen>
+      />
       
       <Tab.Screen 
         name="BranchManagement" 
@@ -150,14 +169,14 @@ function MainDrawer() {
         drawerType: 'front',
         drawerStyle: {
           backgroundColor: '#fff',
-          width: 240,
+          width: 300,
         },
         headerLeft: () => (
           <Ionicons
             name="menu"
             size={24}
             color="#000"
-            style={{ marginLeft: 16 }}
+            style={{ marginLeft: 20 }}
             onPress={() => navigation.openDrawer()}
           />
         ),
@@ -215,16 +234,22 @@ export default function AppNavigator() {
           setUserData(null);
           return;
         }
+        // console.log("user", JSON.stringify(user))
+        // console.log("user email", user.email)
+        const usersCollection = collection(db, 'users');
+        const userRef =  query(usersCollection, where('email', '==', user.email)); //doc(db, 'users', user.uid);
+        const querySnapshot = await getDocs(userRef);
 
-        const userRef = doc(db, 'users', user.uid);
-        const snapshot = await getDoc(userRef);
-
-        if (!snapshot.exists()) {
+        if (querySnapshot.empty) {
           console.log('User profile not found, initializing new profile...');
           const newProfile = await initializeUserProfile(user);
           setUserData(newProfile);
         } else {
-          const data = snapshot.data();
+          const userDoc = querySnapshot.docs[0];
+          const data = userDoc.data();
+
+          // console.log("data", JSON.stringify(data))
+
           if (!data.role) {
             console.warn('User document missing role field');
             await setDoc(userRef, { role: 'user' }, { merge: true });
@@ -267,7 +292,7 @@ export default function AppNavigator() {
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator>
         {!user ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Login" component={LoginScreen}  options={{ headerShown: false }} />
         ) : userData?.role === 'admin' ? (
           <Stack.Screen 
             name="Admin" 

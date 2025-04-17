@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   branchName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },

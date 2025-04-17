@@ -120,4 +120,9 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
   },
+  title: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
 });

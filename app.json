@@ -29,6 +29,15 @@
     ],
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "362576fd-23d7-4733-96ce-99442a67620f"
+      }
+    },
+    "owner": "greko2017"
   }
 }
